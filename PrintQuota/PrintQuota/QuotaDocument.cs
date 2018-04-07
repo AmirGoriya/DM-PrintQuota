@@ -257,7 +257,7 @@ namespace PrintQuota
                 new { JobName = "I'm really dying here", LabourHours = 57, LabourCost = 114, MaterialCost = 1125},
                 new { JobName = "Give me data", LabourHours = 35, LabourCost = 70, MaterialCost = 635},
                 new { JobName = "Anything will do", LabourHours = 12, LabourCost = 24, MaterialCost = 210},
-                new { JobName = "Okay sleepy time", LabourHours = 8, LabourCost = 16, MaterialCost = 22},
+                new { JobName = "Okay sleepy time", LabourHours = 8, LabourCost = 16, MaterialCost = 22}
             };
 
             // Iterate through the test data and transfer data to table.
@@ -448,7 +448,7 @@ namespace PrintQuota
                 new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500},
                 new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500},
                 new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500},
-                new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500},
+                new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500}
             };
 
             // Iterate through the test data and transfer data to table.
