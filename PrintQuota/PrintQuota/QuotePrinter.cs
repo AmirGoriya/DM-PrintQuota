@@ -1,25 +1,33 @@
-﻿using MigraDoc.DocumentObjectModel;
+﻿using System;
+using System.Diagnostics;
+using MigraDoc.Rendering;
+using MigraDoc.DocumentObjectModel;
 using MigraDoc.DocumentObjectModel.Tables;
 using MigraDoc.DocumentObjectModel.Shapes;
 
-namespace PrintQuota
+namespace PrintQuote
 {
-    class QuotaDocument
+    class QuotePrinter
     {
         /// <summary>
-        /// The MigraDoc document that represents the quota.
+        /// The MigraDoc document that represents the Quote.
         /// </summary>
         Document _document;
 
         /// <summary>
-        /// The text frame of the MigraDoc document that contains the address.
+        /// The text frame of the MigraDoc document that contains the quote name.
         /// </summary>
-        TextFrame _addressFrame;
+        TextFrame _quoteName;
 
         /// <summary>
-        /// The table of the MigraDoc document that contains the quota items.
+        /// The table of the MigraDoc document that contains the Quote items.
         /// </summary>
         Table _table;
+
+        /// <summary>
+        /// The quote object which will hold all the data being passed to QuotePrinter.
+        /// </summary>
+        Quote _quote;
 
         // Some pre-defined colors in RGB.
         readonly static Color TableBorder = new Color(41, 111, 81);
@@ -27,33 +35,72 @@ namespace PrintQuota
         readonly static Color TableGray = new Color(242, 242, 242);
 
         /// <summary>
-        /// Creates the quota printout document.
+        /// Initializes an object which allows printing a quote to a PDF document.
+        /// </summary>
+        /// <param name="quote">An initialized Quote object.</param>
+        public QuotePrinter(Quote quote)
+        {
+            // Assigns the passed quote object to quote field.
+            _quote = quote;
+        }
+
+        /// <summary>
+        /// Creates and saves a formatted PDF document containing 
+        /// </summary>
+        /// <param name="filePath"></param>
+        public void PrintDocument(string filePath)
+        {
+            try
+            {
+                // Create the document using MigraDoc.
+                var document = CreateDocument();
+                document.UseCmykColor = true;
+
+                // Create a renderer for PDF that uses Unicode font encoding.
+                var pdfRenderer = new PdfDocumentRenderer(true);
+
+                // Set the MigraDoc document.
+                pdfRenderer.Document = document;
+
+                // Create the PDF document.
+                pdfRenderer.RenderDocument();
+
+                // Save the PDF document...
+                pdfRenderer.Save(filePath);
+                // ...and start a PDF viewer.
+                Process.Start(filePath);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Creates the Quote printout document.
         /// </summary>
         public Document CreateDocument()
         {
             // Create a new MigraDoc document.
             _document = new Document();
-            _document.Info.Title = "A sample quota";
-            _document.Info.Subject = "Experimenting with MigraDoc.";
-            _document.Info.Author = "Amir Goriya";
+            _document.Info.Title = "Quote Document";
+            _document.Info.Subject = _quote.title;
+            _document.Info.Author = "Dell Mechanical";
+
 
             DefineStyles();
 
+            // Create and populate the summary page.
             CreateSummaryPage();
-
             PopulateSummaryPage();
 
-            CreateSectionPage();
+            // Create and populate all section pages.
+            for (int intSectionNumber = 0; intSectionNumber < _quote.sections.Count; intSectionNumber++)
+            {
+                CreateSectionPage(intSectionNumber);
+                PopulateSectionPage(intSectionNumber);
+            }
 
-            PopulateSectionPage();
-
-            CreateSectionPage();
-
-            PopulateSectionPage();
-
-            CreateSectionPage();
-
-            PopulateSectionPage();
 
             return _document;
         }
@@ -101,12 +148,12 @@ namespace PrintQuota
             // Each MigraDoc document needs at least one section.
             // Don't confuse the AddSection() with the tables we're defining as "sections" for this project.
             // In this context, "section" essentially means "page".
-            var summary = _document.AddSection();
+            var summaryPage = _document.AddSection();
 
             // Copy Default Page Setup and then change top and bottom margins.
-            summary.PageSetup = _document.DefaultPageSetup.Clone();
-            summary.PageSetup.TopMargin = "2cm";
-            summary.PageSetup.BottomMargin = "2cm";
+            summaryPage.PageSetup = _document.DefaultPageSetup.Clone();
+            summaryPage.PageSetup.TopMargin = "2cm";
+            summaryPage.PageSetup.BottomMargin = "2cm";
 
 
             // If we choose to add a logo to the printouts, we can do that here.
@@ -123,7 +170,7 @@ namespace PrintQuota
             */
 
             // Create the footer.
-            var paragraph = summary.Footers.Primary.AddParagraph();
+            var paragraph = summaryPage.Footers.Primary.AddParagraph();
             paragraph.AddText("Dell Mechanical ● 666 Some Street ● Thunder Bay  ON ● (807) 999-9999");
             paragraph.Format.Font.Size = 9;
             paragraph.Format.Alignment = ParagraphAlignment.Center;
@@ -131,37 +178,37 @@ namespace PrintQuota
             // Create the text frame for the address.
             // We can change this to hold any other information (for example: a client's information)...
             // ...as long as that data is being passed from the main application.
-            _addressFrame = summary.AddTextFrame();
-            _addressFrame.Height = "3.0cm";
-            _addressFrame.Width = "7.0cm";
-            _addressFrame.Left = ShapePosition.Left;
-            _addressFrame.RelativeHorizontal = RelativeHorizontal.Margin;
-            _addressFrame.Top = "1.5cm";
-            _addressFrame.RelativeVertical = RelativeVertical.Page;
+            _quoteName = summaryPage.AddTextFrame();
+            _quoteName.Height = "3.0cm";
+            _quoteName.Width = "7.0cm";
+            _quoteName.Left = ShapePosition.Left;
+            _quoteName.RelativeHorizontal = RelativeHorizontal.Margin;
+            _quoteName.Top = "1.5cm";
+            _quoteName.RelativeVertical = RelativeVertical.Page;
 
             // Show the sender in the address frame. (This is here in case we change the above address...
             // ...frame to show client's information as opposed to Dell Mechanical's info.)
-            paragraph = _addressFrame.AddParagraph("Dell Mechanical ● 666 Some Street ● (807) 999-9999");
+            paragraph = _quoteName.AddParagraph("Dell Mechanical ● 666 Some Street ● (807) 999-9999");
             paragraph.Format.Font.Size = 7;
             paragraph.Format.Font.Bold = true;
             paragraph.Format.SpaceAfter = 3;
 
             // Add the print date field.
-            paragraph = summary.AddParagraph();
+            paragraph = summaryPage.AddParagraph();
             // We use an empty paragraph to move the first text line below the address field.
             paragraph.Format.LineSpacing = "2.25cm";
             paragraph.Format.LineSpacingRule = LineSpacingRule.Exactly;
             // And the table title.
-            paragraph = summary.AddParagraph();
+            paragraph = summaryPage.AddParagraph();
             paragraph.Format.SpaceBefore = 0;
             paragraph.Style = "Reference";
-            paragraph.AddFormattedText("QUOTA SUMMARY", TextFormat.Bold);
+            paragraph.AddFormattedText("QUOTE SUMMARY", TextFormat.Bold);
             paragraph.AddTab();
             paragraph.AddText("Thunder Bay, ");
             paragraph.AddDateField("dd-MMMM-yyyy");
 
             // Create the table object.
-            _table = summary.AddTable();
+            _table = summaryPage.AddTable();
             _table.Style = "Table";
             _table.Borders.Color = TableBorder;
             _table.Borders.Width = 0.25;
@@ -173,16 +220,13 @@ namespace PrintQuota
             var column = _table.AddColumn("1.2cm");
             column.Format.Alignment = ParagraphAlignment.Center;
 
-            column = _table.AddColumn("2cm");
-            column.Format.Alignment = ParagraphAlignment.Right;
-
             column = _table.AddColumn("3cm");
             column.Format.Alignment = ParagraphAlignment.Right;
 
-            column = _table.AddColumn("3cm");
+            column = _table.AddColumn("4cm");
             column.Format.Alignment = ParagraphAlignment.Right;
 
-            column = _table.AddColumn("3cm");
+            column = _table.AddColumn("4cm");
             column.Format.Alignment = ParagraphAlignment.Right;
 
             column = _table.AddColumn("4cm");
@@ -194,18 +238,18 @@ namespace PrintQuota
             row.Format.Alignment = ParagraphAlignment.Center;
             row.Format.Font.Bold = true;
             row.Shading.Color = TableGreen;
-            row.Cells[0].AddParagraph("Section");
+            row.Cells[0].AddParagraph("Section No.");
             row.Cells[0].Format.Font.Bold = false;
             row.Cells[0].Format.Alignment = ParagraphAlignment.Left;
             row.Cells[0].VerticalAlignment = VerticalAlignment.Bottom;
             row.Cells[0].MergeDown = 1;
             row.Cells[1].AddParagraph("Job Name");
             row.Cells[1].Format.Alignment = ParagraphAlignment.Left;
-            row.Cells[1].MergeRight = 3;
-            row.Cells[5].AddParagraph("Section Cost");
-            row.Cells[5].Format.Alignment = ParagraphAlignment.Left;
-            row.Cells[5].VerticalAlignment = VerticalAlignment.Bottom;
-            row.Cells[5].MergeDown = 1;
+            row.Cells[1].MergeRight = 2;
+            row.Cells[4].AddParagraph("Section Cost");
+            row.Cells[4].Format.Alignment = ParagraphAlignment.Left;
+            row.Cells[4].VerticalAlignment = VerticalAlignment.Bottom;
+            row.Cells[4].MergeDown = 1;
 
             row = _table.AddRow();
             row.HeadingFormat = true;
@@ -216,54 +260,29 @@ namespace PrintQuota
             row.Cells[1].Format.Alignment = ParagraphAlignment.Left;
             row.Cells[2].AddParagraph("Labour Cost");
             row.Cells[2].Format.Alignment = ParagraphAlignment.Left;
-            row.Cells[3].AddParagraph("Material");
+            row.Cells[3].AddParagraph("Material Cost");
             row.Cells[3].Format.Alignment = ParagraphAlignment.Left;
-            row.Cells[4].AddParagraph("Extra Cost");
-            row.Cells[4].Format.Alignment = ParagraphAlignment.Left;
 
-            _table.SetEdge(0, 0, 6, 2, Edge.Box, BorderStyle.Single, 0.75, Color.Empty);
+            _table.SetEdge(0, 0, 5, 2, Edge.Box, BorderStyle.Single, 0.75, Color.Empty);
         }
 
         /// <summary>
-        /// Fills the summary page with dynamic data.
+        /// Fills the summary page with data from the quote object.
         /// </summary>
         void PopulateSummaryPage()
         {
-            // Fill the address in the address text frame.
-            // This is where we can receive the client info which can go in the addressframe.
-            var paragraph = _addressFrame.AddParagraph();
-            paragraph.AddText("Dell Mechanical\n");
-            paragraph.AddText("666 Some Street\n");
-            paragraph.AddText("Thunder Bay ON  P7B 16A\n");
-            paragraph.AddText("(807) 999-999");
+            // Fill the quote title in the text frame.
+            var paragraph = _quoteName.AddParagraph();
+            paragraph.AddText(_quote.title);
 
-            // Initialize total and extra costs and the section number.
-            double totalCost = 0;
-            double extraCosts = 55;
-            int sectionNumber = 0;
-
-            // Create an array of test data.
-            var inputData = new[]
-            {
-                // Creates some garbage data on the fly.
-                new { JobName = "Above Ground DMV", LabourHours = 20, LabourCost = 400, MaterialCost = 500},
-                new { JobName = "Blah", LabourHours = 24, LabourCost = 480, MaterialCost = 600},
-                new { JobName = "Garbage Stuff", LabourHours = 48, LabourCost = 960, MaterialCost = 900},
-                new { JobName = "Some Other Stuff", LabourHours = 91, LabourCost = 182, MaterialCost = 1800},
-                new { JobName = "And this and that", LabourHours = 62, LabourCost = 124, MaterialCost = 1100},
-                new { JobName = "I don't know what else", LabourHours = 55, LabourCost = 110, MaterialCost = 1000},
-                new { JobName = "This is getting boring", LabourHours = 44, LabourCost = 88, MaterialCost = 700},
-                new { JobName = "Someone help me please", LabourHours = 51, LabourCost = 102, MaterialCost = 1050},
-                new { JobName = "I'm really dying here", LabourHours = 57, LabourCost = 114, MaterialCost = 1125},
-                new { JobName = "Give me data", LabourHours = 35, LabourCost = 70, MaterialCost = 635},
-                new { JobName = "Anything will do", LabourHours = 12, LabourCost = 24, MaterialCost = 210},
-                new { JobName = "Okay sleepy time", LabourHours = 8, LabourCost = 16, MaterialCost = 22},
-            };
+            // Create a counter for number of sections.
+            int intSectionNumber = 0;
 
             // Iterate through the test data and transfer data to table.
-            foreach (var input in inputData)
+            foreach (Section section in _quote.sections)
             {
-                sectionNumber++;
+                // Increment the section number.
+                intSectionNumber++;
 
                 // Each item fills two rows.
                 var row1 = _table.AddRow();
@@ -273,44 +292,62 @@ namespace PrintQuota
                 row1.Cells[0].VerticalAlignment = VerticalAlignment.Center;
                 row1.Cells[0].MergeDown = 1;
                 row1.Cells[1].Format.Alignment = ParagraphAlignment.Left;
-                row1.Cells[1].MergeRight = 3;
-                row1.Cells[5].Shading.Color = TableGray;
-                row1.Cells[5].MergeDown = 1;
+                row1.Cells[1].MergeRight = 2;
+                row1.Cells[4].Shading.Color = TableGray;
+                row1.Cells[4].MergeDown = 1;
 
-                row1.Cells[0].AddParagraph(sectionNumber.ToString());
+                row1.Cells[0].AddParagraph(intSectionNumber.ToString());
                 paragraph = row1.Cells[1].AddParagraph();
                 var formattedText = new FormattedText() { Style = "Title" };
-                formattedText.AddText(input.JobName);
+                formattedText.AddText(section.title);
                 paragraph.Add(formattedText);
 
-                row2.Cells[1].AddParagraph($"{input.LabourHours.ToString()} hrs");
-                row2.Cells[2].AddParagraph($"{input.LabourCost.ToString("c")}");
-                row2.Cells[3].AddParagraph($"{input.MaterialCost.ToString("c")}");
-                row2.Cells[4].AddParagraph();
+                row2.Cells[1].AddParagraph($"{section.totalLabourHours.ToString()} hrs");
+                row2.Cells[2].AddParagraph($"{section.totalLabourCost.ToString("c")}");
+                row2.Cells[3].AddParagraph($"{section.totalMaterialCost.ToString("c")}");
 
-                double sectionCost = (input.LabourHours * input.LabourCost) + input.MaterialCost;
-                row1.Cells[5].AddParagraph($"{sectionCost.ToString("c")}");
-                row1.Cells[5].VerticalAlignment = VerticalAlignment.Bottom;
-                totalCost += sectionCost;
 
-                _table.SetEdge(0, _table.Rows.Count - 2, 6, 2, Edge.Box, BorderStyle.Single, 0.75);
+                row1.Cells[4].AddParagraph($"{section.totalCost.ToString("c")}");
+                row1.Cells[4].VerticalAlignment = VerticalAlignment.Bottom;
+
+                _table.SetEdge(0, _table.Rows.Count - 2, 5, 2, Edge.Box, BorderStyle.Single, 0.75);
             }
 
             // Add an invisible row as a space line to the table.
             var row = _table.AddRow();
             row.Borders.Visible = false;
 
-            // Add the additional costs row.
+            // Add the total labour hours row.
             row = _table.AddRow();
-            row.Cells[0].AddParagraph("Additional Costs");
+            row.Cells[0].AddParagraph("Total Labour Hours");
             row.Cells[0].Borders.Visible = false;
             row.Cells[0].Format.Font.Bold = true;
             row.Cells[0].Format.Alignment = ParagraphAlignment.Right;
-            row.Cells[0].MergeRight = 4;
-            row.Cells[5].AddParagraph($"{extraCosts.ToString("c")}");
-            row.Cells[5].Format.Font.Name = "Segoe UI";
+            row.Cells[0].MergeRight = 3;
+            row.Cells[4].AddParagraph($"{_quote.totalLabourHours.ToString()}");
+            row.Cells[4].Format.Font.Name = "Segoe UI";
 
-            totalCost += extraCosts;
+            // Add the additional costs row.
+            row = _table.AddRow();
+            row.Cells[0].AddParagraph("Extra Costs");
+            row.Cells[0].Borders.Visible = false;
+            row.Cells[0].Format.Font.Bold = true;
+            row.Cells[0].Format.Alignment = ParagraphAlignment.Right;
+            row.Cells[0].MergeRight = 3;
+            row.Cells[4].AddParagraph($"{_quote.extraCosts.ToString("c")}");
+            row.Cells[4].Format.Font.Name = "Segoe UI";
+
+
+            // Add the cost deductions row.
+            row = _table.AddRow();
+            row.Cells[0].AddParagraph("Cost Deductions");
+            row.Cells[0].Borders.Visible = false;
+            row.Cells[0].Format.Font.Bold = true;
+            row.Cells[0].Format.Alignment = ParagraphAlignment.Right;
+            row.Cells[0].MergeRight = 3;
+            row.Cells[4].AddParagraph($"-({_quote.costDedeductions.ToString("c")})");
+            row.Cells[4].Format.Font.Name = "Segoe UI";
+
 
             // Add the total cost row.
             row = _table.AddRow();
@@ -318,13 +355,13 @@ namespace PrintQuota
             row.Cells[0].Borders.Visible = false;
             row.Cells[0].Format.Font.Bold = true;
             row.Cells[0].Format.Alignment = ParagraphAlignment.Right;
-            row.Cells[0].MergeRight = 4;
-            row.Cells[5].AddParagraph($"{totalCost.ToString("c")}");
-            row.Cells[5].Format.Font.Name = "Segoe UI";
-            row.Cells[5].Format.Font.Bold = true;
+            row.Cells[0].MergeRight = 3;
+            row.Cells[4].AddParagraph($"{_quote.totalCost.ToString("c")}");
+            row.Cells[4].Format.Font.Name = "Segoe UI";
+            row.Cells[4].Format.Font.Bold = true;
 
             // Set the borders of the specified cell range.
-            _table.SetEdge(5, _table.Rows.Count - 4, 1, 4, Edge.Box, BorderStyle.Single, 0.75);
+            _table.SetEdge(4, _table.Rows.Count - 4, 1, 4, Edge.Box, BorderStyle.Single, 0.75);
 
             // Add the comment box.
             paragraph = _document.LastSection.AddParagraph();
@@ -340,38 +377,38 @@ namespace PrintQuota
         /// <summary>
         /// Creates a new Section Page.
         /// </summary>
-        void CreateSectionPage()
+        void CreateSectionPage(int intSectionNumber)
         {
-            var section = _document.AddSection();
+            var sectionPage = _document.AddSection();
 
             // Define the page setup. 
-            section.PageSetup = _document.DefaultPageSetup.Clone();
-            section.PageSetup.TopMargin = "1.25cm";
-            section.PageSetup.BottomMargin = "1.25cm";
-            section.PageSetup.LeftMargin = "4cm";
-            section.PageSetup.RightMargin = "4cm";
+            sectionPage.PageSetup = _document.DefaultPageSetup.Clone();
+            sectionPage.PageSetup.TopMargin = "1.25cm";
+            sectionPage.PageSetup.BottomMargin = "1.25cm";
+            sectionPage.PageSetup.LeftMargin = "4cm";
+            sectionPage.PageSetup.RightMargin = "4cm";
 
 
             // Create the footer.
-            var paragraph = section.Footers.Primary.AddParagraph();
+            var paragraph = sectionPage.Footers.Primary.AddParagraph();
             paragraph.AddText("Dell Mechanical ● 666 Some Street ● Thunder Bay  ON ● (807) 999-9999");
             paragraph.Format.Font.Size = 9;
             paragraph.Format.Alignment = ParagraphAlignment.Center;
 
             // Add the print date field.
-            paragraph = section.AddParagraph();
+            paragraph = sectionPage.AddParagraph();
             // We use an empty paragraph to move the first text line below the address field.
             paragraph.Format.LineSpacing = "2.25cm";
             paragraph.Format.LineSpacingRule = LineSpacingRule.Exactly;
             // Add the table title.
-            paragraph = section.AddParagraph();
+            paragraph = sectionPage.AddParagraph();
             paragraph.Format.SpaceBefore = 0;
             paragraph.Style = "Reference";
-            paragraph.AddFormattedText("JOB NAME", TextFormat.Underline);
+            paragraph.AddFormattedText(_quote.sections[intSectionNumber].title, TextFormat.Underline);
             //**** Need to make it so that the above title is dynamic and changes based on JOB NAME.****//
 
             // Create the table object.
-            _table = section.AddTable();
+            _table = sectionPage.AddTable();
             _table.Style = "Table";
             _table.Borders.Color = TableBorder;
             _table.Borders.Width = 0.25;
@@ -380,7 +417,7 @@ namespace PrintQuota
             _table.Rows.LeftIndent = 0;
 
             // Before you can add a row, you must define the columns.
-            var column = _table.AddColumn("1.2cm");
+            var column = _table.AddColumn("1.5cm");
             column.Format.Alignment = ParagraphAlignment.Center;
 
             column = _table.AddColumn("3cm");
@@ -401,12 +438,12 @@ namespace PrintQuota
             row.Format.Alignment = ParagraphAlignment.Center;
             row.Format.Font.Bold = true;
             row.Shading.Color = TableGreen;
-            row.Cells[0].AddParagraph("Labour Hours");
+            row.Cells[0].AddParagraph("Quantity");
             row.Cells[0].Format.Font.Bold = false;
             row.Cells[0].Format.Alignment = ParagraphAlignment.Left;
             row.Cells[0].VerticalAlignment = VerticalAlignment.Bottom;
             row.Cells[0].MergeDown = 1;
-            row.Cells[1].AddParagraph("Material");
+            row.Cells[1].AddParagraph("Material Type");
             row.Cells[1].Format.Alignment = ParagraphAlignment.Left;
             row.Cells[1].MergeRight = 3;
 
@@ -430,29 +467,11 @@ namespace PrintQuota
         /// <summary>
         /// Fills the section page with dynamic data.
         /// </summary>
-        void PopulateSectionPage()
-        {
-            // Initialize total and extra costs and the section number.
-            double labourTotal = 0;
-            double materialTotal = 0;
+        void PopulateSectionPage(int intSectionNumber)
+        {          
 
-            // Create an array of test data.
-            var inputData = new[]
-            {
-                // Creates some garbage data on the fly.
-                new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500},
-                new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500},
-                new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500},
-                new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500},
-                new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500},
-                new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500},
-                new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500},
-                new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500},
-                new { LabourHours = 10, MaterialDesc = "ABC", LabourUnitPrice = 1, LabourPrice = 400, MaterialUnitPrice = 5, MaterialPrice = 500},
-            };
-
-            // Iterate through the test data and transfer data to table.
-            foreach (var input in inputData)
+            // Iterate through each entry in the current section.
+            for (int intEntryNumber = 0; intEntryNumber < _quote.sections[intSectionNumber]._materialTypes.Count; intEntryNumber++)
             {
                 // Each item fills two rows.
                 var row1 = _table.AddRow();
@@ -464,19 +483,18 @@ namespace PrintQuota
                 row1.Cells[1].Format.Alignment = ParagraphAlignment.Left;
                 row1.Cells[1].MergeRight = 3;
 
-                row1.Cells[0].AddParagraph(input.LabourHours.ToString());
+                row1.Cells[0].AddParagraph(_quote.sections[intSectionNumber]._quantity[intEntryNumber].ToString());
                 var paragraph = row1.Cells[1].AddParagraph();
                 var formattedText = new FormattedText() { Style = "Title" };
-                formattedText.AddText(input.MaterialDesc);
+                formattedText.AddText(_quote.sections[intSectionNumber].materialTypes[intEntryNumber]);
                 paragraph.Add(formattedText);
 
-                row2.Cells[1].AddParagraph($"{input.LabourUnitPrice.ToString("c")}/unit");
-                row2.Cells[2].AddParagraph(input.LabourPrice.ToString("c"));
-                row2.Cells[3].AddParagraph($"{input.MaterialUnitPrice.ToString("c")}/unit");
-                row2.Cells[4].AddParagraph(input.MaterialPrice.ToString("c"));
-
-                labourTotal += input.LabourPrice;
-                materialTotal += input.MaterialPrice;
+                // Fill all the columns with unit costs and true costs for each entry in the section page.
+                // Relies on all section lists having synchronized entries.
+                row2.Cells[1].AddParagraph($"{_quote.sections[intSectionNumber].labourUnitCosts[intEntryNumber].ToString("c")}/unit");
+                row2.Cells[2].AddParagraph(_quote.sections[intSectionNumber].labourCosts[intEntryNumber].ToString("c"));
+                row2.Cells[3].AddParagraph($"{_quote.sections[intSectionNumber].materialUnitCosts[intEntryNumber].ToString("c")}/unit");
+                row2.Cells[4].AddParagraph(_quote.sections[intSectionNumber].materialCosts[intEntryNumber].ToString("c"));
 
 
                 _table.SetEdge(0, _table.Rows.Count - 2, 5, 2, Edge.Box, BorderStyle.Single, 0.75);
@@ -490,7 +508,7 @@ namespace PrintQuota
             row.Cells[0].Format.Font.Bold = true;
             row.Cells[0].Format.Alignment = ParagraphAlignment.Right;
             row.Cells[0].MergeRight = 1;
-            row.Cells[2].AddParagraph(labourTotal.ToString("c"));
+            row.Cells[2].AddParagraph(_quote.sections[intSectionNumber].totalLabourCost.ToString("c"));
             row.Cells[2].Format.Font.Name = "Segoe UI";
 
             // Add the material total columns.
@@ -498,7 +516,7 @@ namespace PrintQuota
             row.Cells[3].Borders.Visible = false;
             row.Cells[3].Format.Font.Bold = true;
             row.Cells[3].Format.Alignment = ParagraphAlignment.Right;
-            row.Cells[4].AddParagraph(materialTotal.ToString("c"));
+            row.Cells[4].AddParagraph(_quote.sections[intSectionNumber].totalMaterialCost.ToString("c"));
             row.Cells[4].Format.Font.Name = "Segoe UI";
 
             // Set the borders of the specified cell range.

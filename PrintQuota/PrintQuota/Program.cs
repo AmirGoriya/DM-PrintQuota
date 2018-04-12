@@ -1,43 +1,47 @@
-﻿using System;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
-using MigraDoc.Rendering;
-
-namespace PrintQuota
+namespace PrintQuote
 {
     class Program
     {
         static void Main(string[] args)
         {
-            try
+            Quote quote = new Quote("Test Quote Document");
+            quote.sections = new List<Section>();
+
+            for (int i = 0; i < 5; i++)
             {
-                // Initialize a quota object.
-                var quota = new QuotaDocument();
-
-                // Create the document using MigraDoc.
-                var document = quota.CreateDocument();
-                document.UseCmykColor = true;
-                
-
-                // Create a renderer for PDF that uses Unicode font encoding.
-                var pdfRenderer = new PdfDocumentRenderer(true);
-
-                // Set the MigraDoc document.
-                pdfRenderer.Document = document;
-
-                // Create the PDF document.
-                pdfRenderer.RenderDocument();
-
-                // Save the PDF document...
-                var filePath = "Quota.pdf";
-                pdfRenderer.Save(filePath);
-                // ...and start a PDF viewer.
-                Process.Start(filePath);
+                quote.sections.Add(new Section
+                {
+                    title = $"Job #{i}",
+                    materialTypes = new List<string> { "A", "B", "C", "D" },
+                    quantity = new List<int> { 1, 2, 3, 4 },
+                    materialCosts = new List<double> { 10, 20, 30, 40 },
+                    materialUnitCosts = new List<double> { 10, 20, 30, 40 },
+                    labourUnitCosts = new List<double> { 5, 10, 15, 20 },
+                    labourCosts = new List<double> { 5, 10, 15, 20 }
+                });
+                quote.sections[i].calc_sectionTotals();
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                Console.ReadKey();
-            }
+            quote.costDedeductions = 10;
+            quote.calcTotals();
+
+
+            /* Amir's addition*****************/
+            string filePath = "quote.pdf"; // Replace with the location of where the PDF will be saved.
+
+            // Initialize a QuotePrinter object.
+            var quotePrinter = new QuotePrinter(quote);
+
+            // Calls the quotePrinter's print method.
+            // This method creates a document using the data sent in.
+            quotePrinter.PrintDocument(filePath);
+
+            // Opens the PDF document using the default PDF viewer.           
+            Process.Start(filePath);
+
+            /*********************************/
+
         }
     }
 }

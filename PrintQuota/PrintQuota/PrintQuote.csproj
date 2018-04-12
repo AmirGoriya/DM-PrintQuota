@@ -60,7 +60,9 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="QuotaDocument.cs" />
+    <Compile Include="Quote.cs" />
+    <Compile Include="QuotePrinter.cs" />
+    <Compile Include="Section.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
